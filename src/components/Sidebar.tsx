@@ -14,7 +14,7 @@ import rollerSvgText   from "../assets/icons/roller.svg?raw";
 import fixSvgText      from "../assets/icons/fix.svg?raw";
 import jointSvgText    from "../assets/icons/joint.svg?raw";
 import loadSvgText     from "../assets/icons/load.svg?raw";
-import distLoadSvgText from "../assets/icons/distLoad.svg?raw";
+import distloadSvgText from "../assets/icons/distload.svg?raw";
 import nodeEditSvgText from "../assets/icons/nodeEdit.svg?raw";
 
 export function Sidebar() {
@@ -59,7 +59,7 @@ export function Sidebar() {
           <Text x={16} y={y} text="LOAD" fill="#fff" fontStyle="normal" fontSize={11} opacity={0.9} />
           {(() => { y += LABEL_H; return null; })()}
           <IconButton x={x0} y={y} w={BTN_W} h={BTN_H} active={mode === "load"}     svgText={loadSvgText}     onClick={() => switchMode("load")} />
-          <IconButton x={x1} y={y} w={BTN_W} h={BTN_H} active={mode === "distLoad"} svgText={distLoadSvgText} onClick={() => switchMode("distLoad")} />
+          <IconButton x={x1} y={y} w={BTN_W} h={BTN_H} active={mode === "distLoad"} svgText={distloadSvgText} onClick={() => switchMode("distLoad")} />
           {(() => { y += ROW_H + ROW_GAP; return null; })()}
 
           {/* フッター */}
