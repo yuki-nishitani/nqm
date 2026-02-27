@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="_レイヤー_3" data-name="レイヤー 3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <style>
+      .cls-1 {
+        stroke-width: 4px;
+      }
+
+      .cls-1, .cls-2, .cls-3 {
+        fill: none;
+        stroke: #070001;
+        stroke-linecap: round;
+        stroke-linejoin: bevel;
+      }
+
+      .cls-2 {
+        stroke-width: 3px;
+      }
+
+      .cls-3 {
+        stroke-width: 2px;
+      }
+    </style>
+  </defs>
+  <line class="cls-1" x1="12.5" y1="55" x2="87.5" y2="55"/>
+  <line class="cls-3" x1="12.5" y1="48.75" x2="87.5" y2="48.75"/>
+  <g>
+    <line class="cls-2" x1="12.5" y1="82.5" x2="26.25" y2="56.25"/>
+    <line class="cls-2" x1="24.13" y1="82.5" x2="37.88" y2="56.25"/>
+    <line class="cls-2" x1="35.75" y1="82.5" x2="49.5" y2="56.25"/>
+    <line class="cls-2" x1="47.37" y1="82.5" x2="61.12" y2="56.25"/>
+    <line class="cls-2" x1="59" y1="82.5" x2="72.75" y2="56.25"/>
+    <line class="cls-2" x1="70.62" y1="82.5" x2="84.38" y2="56.25"/>
+  </g>
+</svg>

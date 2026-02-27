@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="_レイヤー_1" data-name="レイヤー 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <style>
+      .cls-1 {
+        stroke: #231815;
+      }
+
+      .cls-1, .cls-2, .cls-3, .cls-4, .cls-5, .cls-6 {
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 2.24px;
+      }
+
+      .cls-2 {
+        stroke: #231918;
+      }
+
+      .cls-3 {
+        stroke: #150b0a;
+      }
+
+      .cls-4 {
+        stroke: #241a19;
+      }
+
+      .cls-5 {
+        stroke: #1e1413;
+      }
+
+      .cls-6 {
+        stroke: #070001;
+      }
+    </style>
+  </defs>
+  <line class="cls-1" x1="15" y1="35.86" x2="15" y2="66.39"/>
+  <polyline class="cls-1" points="10 60.11 15 67.96 20 60.11"/>
+  <line class="cls-2" x1="29" y1="36.01" x2="29" y2="66.55"/>
+  <polyline class="cls-2" points="24 60.26 29 68.12 34 60.26"/>
+  <line class="cls-4" x1="43" y1="36.17" x2="43" y2="66.71"/>
+  <polyline class="cls-4" points="38 60.42 43 68.28 48 60.42"/>
+  <line class="cls-5" x1="57" y1="36.33" x2="57" y2="66.86"/>
+  <polyline class="cls-5" points="52 60.58 57 68.44 62 60.58"/>
+  <line class="cls-3" x1="71" y1="36.49" x2="71" y2="67.02"/>
+  <polyline class="cls-3" points="66 60.74 71 68.59 76 60.74"/>
+  <line class="cls-6" x1="85" y1="36.64" x2="85" y2="67.18"/>
+  <polyline class="cls-6" points="80 60.89 85 68.75 90 60.89"/>
+</svg>
