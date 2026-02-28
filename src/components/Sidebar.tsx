@@ -14,7 +14,7 @@ import rollerSvgText   from "../assets/icons/roller.svg?raw";
 import fixSvgText      from "../assets/icons/fix.svg?raw";
 import jointSvgText    from "../assets/icons/joint.svg?raw";
 import loadSvgText     from "../assets/icons/load.svg?raw";
-
+import distloadSvgText from "../assets/icons/distload.svg?raw";
 import nodeEditSvgText from "../assets/icons/nodeEdit.svg?raw";
 
 export function Sidebar() {
