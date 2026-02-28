@@ -2,8 +2,8 @@ import { useAppContext } from "../contexts/AppContext";
 
 const PANEL_STYLE: React.CSSProperties = {
   position:        "absolute",
-  bottom:          16,
-  right:           16,
+  top:          16,
+  right:           30,
   width:           200,
   minHeight:       60,
   background:      "#1e1e1e",

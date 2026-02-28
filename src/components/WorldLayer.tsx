@@ -1,5 +1,5 @@
 import Konva from "konva";
-import { Layer, Circle, Line, Rect, Shape } from "react-konva";
+import { Layer, Circle, Line, Rect, Shape, Text } from "react-konva";
 import React, { useCallback } from "react";
 
 import { SvgIconShape } from "../SvgIconShape";
@@ -19,6 +19,7 @@ import fixSvgText        from "../assets/icons/fix.svg?raw";
 import jointSvgText      from "../assets/icons/joint.svg?raw";
 import loadSvgText       from "../assets/icons/load.svg?raw";
 import oneDistLoadSvgText from "../assets/icons/onedistload.svg?raw";
+import momentSvgText      from "../assets/icons/moment.svg?raw";
 
 interface Props {
   getWorldPointer: () => { x: number; y: number } | null;
@@ -37,6 +38,7 @@ export function WorldLayer({ getWorldPointer, draft, draftPolyline, startMarker 
     joints, toggleJoint,
     pointLoads, loadRotDrag, startLoadRotDrag,
     distLoads, distRotDrag, startDistRotDrag,
+    momentLoads, flipMomentLoad,
     selectedNodeId, startDrag,
   } = useAppContext();
 
@@ -308,6 +310,71 @@ export function WorldLayer({ getWorldPointer, draft, draftPolyline, startMarker 
             <Circle x={cx} y={cy} radius={R} stroke={YELLOW} strokeWidth={2} dash={[6, 4]} listening={false} />
             <Circle x={cx} y={cy} radius={R} stroke="rgba(0,0,0,0)" strokeWidth={HIT_W} onMouseDown={startRot} />
             <Circle x={kx} y={ky} radius={KNOB_R} fill={YELLOW} onMouseDown={startRot} />
+          </>
+        );
+      })()}
+
+
+            {/* モーメント荷重 */}
+      {momentLoads.map((l) => {
+        const n = nodeById.get(l.nodeId);
+        if (!n) return null;
+        const isSel = sel.kind === "momentLoads" && sel.ids.includes(l.id);
+        const size  = 45;
+        return (
+          <SvgIconShape
+            key={l.id}
+            svgText={momentSvgText}
+            x={n.x} y={n.y}
+            w={size} h={size}
+            stroke={isSel ? BLUE : WHITE}
+            scaleX={l.clockwise ? -1 : 1}
+            offsetX={size / 2} offsetY={size / 2}
+            listening={mode === "select" || mode === "momentLoad"}
+            onMouseDown={(ev: Konva.KonvaEventObject<MouseEvent>) => {
+              if (mode !== "select" && mode !== "momentLoad") return;
+              ev.cancelBubble = true;
+              setSel({ kind: "momentLoads", ids: [l.id] });
+              clearBox();
+            }}
+          />
+        );
+      })}
+
+      {/* 反転ガイド（モーメント荷重選択時） */}
+      {sel.kind === "momentLoads" && sel.ids.length === 1 && (() => {
+        const l = momentLoads.find(v => v.id === sel.ids[0]);
+        if (!l) return null;
+        const n = nodeById.get(l.nodeId);
+        if (!n) return null;
+
+        const cx = n.x, cy = n.y;
+        const R = 38;
+
+        // 右 → 上 に移動
+        const btnX = cx;
+        const btnY = cy - R;
+
+        return (
+          <>
+            {/* 反転ボタン */}
+            <Circle
+              x={btnX} y={btnY} radius={10}
+              fill={YELLOW} opacity={0.9}
+              onMouseDown={(ev: Konva.KonvaEventObject<MouseEvent>) => {
+                ev.cancelBubble = true;
+                flipMomentLoad(l.id);
+              }}
+            />
+
+            {/* アイコン */}
+            <Text
+              x={btnX} y={btnY}
+              text={l.clockwise ? "↺" : "↻"}
+              fontSize={13} fill="#111" fontStyle="bold"
+              offsetX={6} offsetY={7}
+              listening={false}
+            />
           </>
         );
       })()}

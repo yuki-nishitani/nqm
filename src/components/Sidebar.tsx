@@ -15,10 +15,11 @@ import fixSvgText      from "../assets/icons/fix.svg?raw";
 import jointSvgText    from "../assets/icons/joint.svg?raw";
 import loadSvgText     from "../assets/icons/load.svg?raw";
 import distloadSvgText from "../assets/icons/distload.svg?raw";
+import momentSvgText   from "../assets/icons/moment.svg?raw";
 import nodeEditSvgText from "../assets/icons/nodeEdit.svg?raw";
 
 export function Sidebar() {
-  const { H, mode, switchMode, nodes, members, joints, pointLoads, distLoads } = useAppContext();
+  const { H, mode, switchMode, nodes, members, joints, pointLoads, distLoads, momentLoads } = useAppContext();
 
   const footerTopY = H - 14 - FOOTER_LINE_H * FOOTER_LINES;
   const x0 = PAD, x1 = PAD + BTN_W + GAP;
@@ -61,6 +62,8 @@ export function Sidebar() {
           <IconButton x={x0} y={y} w={BTN_W} h={BTN_H} active={mode === "load"}     svgText={loadSvgText}     onClick={() => switchMode("load")} />
           <IconButton x={x1} y={y} w={BTN_W} h={BTN_H} active={mode === "distLoad"} svgText={distloadSvgText} onClick={() => switchMode("distLoad")} />
           {(() => { y += ROW_H + ROW_GAP; return null; })()}
+          <IconButton x={x0} y={y} w={BTN_W} h={BTN_H} active={mode === "momentLoad"} svgText={momentSvgText} onClick={() => switchMode("momentLoad")} />
+          {(() => { y += ROW_H + ROW_GAP; return null; })()}
 
           {/* フッター */}
           <Text x={FOOTER_X} y={footerTopY + FOOTER_LINE_H * 0} text={`Mode: ${mode}`}              fill="#999" fontSize={12} />
@@ -69,6 +72,7 @@ export function Sidebar() {
           <Text x={FOOTER_X} y={footerTopY + FOOTER_LINE_H * 3} text={`Joints: ${joints.length}`}     fill="#999" fontSize={12} />
           <Text x={FOOTER_X} y={footerTopY + FOOTER_LINE_H * 4} text={`Loads: ${pointLoads.length}`}  fill="#999" fontSize={12} />
           <Text x={FOOTER_X} y={footerTopY + FOOTER_LINE_H * 5} text={`DistLoads: ${distLoads.length}`} fill="#999" fontSize={12} />
+          <Text x={FOOTER_X} y={footerTopY + FOOTER_LINE_H * 6} text={`MomLoads: ${momentLoads.length}`}  fill="#999" fontSize={12} />
         </Layer>
       </Stage>
     </div>

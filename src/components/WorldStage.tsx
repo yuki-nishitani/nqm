@@ -23,6 +23,7 @@ export function WorldStage() {
     joints, toggleJoint, addJointDirect,
     pointLoads, loadRotDrag, updateLoadRotDrag, endLoadRotDrag, addPointLoad,
     distLoads, distRotDrag, updateDistRotDrag, endDistRotDrag, toggleDistLoad,
+    momentLoads, addMomentLoad,
     selectedNodeId, nodeDrag, selectNode, startDrag, endDrag,
     transferSupport, transferJoint, transferLoad,
     spaceDown, shiftDown,
@@ -109,7 +110,7 @@ export function WorldStage() {
           if (!wp) return;
           if (rotDrag)     { updateRotDrag(wp.x, wp.y, shiftDown); return; }
           if (loadRotDrag) { updateLoadRotDrag(wp.x, wp.y, shiftDown); return; }
-          if (distRotDrag) { updateDistRotDrag(wp.x, wp.y, shiftDown); return; }
+          if (distRotDrag)   { updateDistRotDrag(wp.x, wp.y, shiftDown); return; }
           if (mode === "nodeEdit" && nodeDrag) {
             moveNode(nodeDrag.nodeId, snap(wp.x - nodeDrag.offsetX), snap(wp.y - nodeDrag.offsetY), true);
             return;
@@ -231,6 +232,28 @@ export function WorldStage() {
             return;
           }
 
+
+          // momentLoad
+          if (mode === "momentLoad") {
+            if (shiftDown) {
+              const hit = findBestIntersection();
+              if (!hit) return;
+              const newNodeId = splitMember(hit.memberId, hit.pt.x, hit.pt.y);
+              if (newNodeId) addMomentLoad(newNodeId);
+            } else {
+              const nearby = findNearbyNode(wp.x, wp.y);
+              if (!nearby) return;
+              const existingLoad = momentLoads.find((l) => l.nodeId === nearby.id);
+              if (existingLoad) {
+                setSel({ kind: "momentLoads", ids: [existingLoad.id] });
+                return;
+              }
+              addMomentLoad(nearby.id);
+            }
+            setSel({ kind: "none" });
+            return;
+          }
+
           // distLoad
           if (mode === "distLoad") {
             const HIT = 12;
@@ -261,7 +284,7 @@ export function WorldStage() {
         onMouseUp={() => {
           if (rotDrag)     { endRotDrag();     return; }
           if (loadRotDrag) { endLoadRotDrag(); return; }
-          if (distRotDrag) { endDistRotDrag(); return; }
+          if (distRotDrag)   { endDistRotDrag();   return; }
           if (mode === "nodeEdit" && nodeDrag) {
             const draggedId = nodeDrag.nodeId;
             const dragged   = nodeById.get(draggedId);

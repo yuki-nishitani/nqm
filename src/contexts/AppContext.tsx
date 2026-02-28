@@ -7,6 +7,7 @@ import { useSupports }  from "../hooks/useSupports";
 import { useJoints }    from "../hooks/useJoints";
 import { usePointLoads } from "../hooks/usePointLoads";
 import { useDistLoads }  from "../hooks/useDistLoads";
+import { useMomentLoads } from "../hooks/useMomentLoads";
 import { useNodeEdit }   from "../hooks/useNodeEdit";
 import { useSelection }  from "../hooks/useSelection";
 import { useMode }       from "../hooks/useMode";
@@ -104,6 +105,16 @@ function useAppContextValue() {
     removeByMemberIds: removeDistLoadsByMemberIds,
   } = useDistLoads();
 
+  // ----- モーメント荷重 -----
+  const {
+    momentLoads,
+    addMomentLoad,
+    flipMomentLoad,
+    removeMomentLoads,
+    removeMomentsByNodeIds,
+    transferMomentToNode,
+  } = useMomentLoads(nodeById);
+
   // ----- FEM 解析 -----
   const {
     femResult,
@@ -124,12 +135,12 @@ function useAppContextValue() {
   useEffect(() => {
     if (femResult !== null) markStale();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodes, members, supports, joints, pointLoads, distLoads]);
+  }, [nodes, members, supports, joints, pointLoads, distLoads, momentLoads]);
 
   // 解析実行ラッパー（現在のモデルを渡す）
   const handleRunAnalysis = useCallback(() => {
-    runAnalysis({ nodes, members, supports, joints, pointLoads, distLoads });
-  }, [runAnalysis, nodes, members, supports, joints, pointLoads, distLoads]);
+    runAnalysis({ nodes, members, supports, joints, pointLoads, distLoads, momentLoads });
+  }, [runAnalysis, nodes, members, supports, joints, pointLoads, distLoads, momentLoads]);
 
   // ----- 複合操作 -----
   const toggleSupportWithExclusion = useCallback((nodeId: string, supportType: SupportType) => {
@@ -146,6 +157,7 @@ function useAppContextValue() {
     if (supports.some((s) => s.nodeId === nodeId)) return;
     if (joints.some((j) => !removedJointIds.has(j.id) && j.nodeId === nodeId)) return;
     if (pointLoads.some((l) => !removedLoadIds.has(l.id) && l.nodeId === nodeId)) return;
+    if (momentLoads.some((l) => l.nodeId === nodeId)) return;
     if (distLoads.some((l) => {
       const m = members.find((m) => m.id === l.memberId);
       return m && (m.a === nodeId || m.b === nodeId);
@@ -183,6 +195,7 @@ function useAppContextValue() {
       removeSupportsByNodeIds(removed);
       removeJointsByNodeIds(removed);
       removeLoadsByNodeIds(removed);
+      removeMomentsByNodeIds(removed);
       selectNode(null);
       return;
     }
@@ -211,6 +224,11 @@ function useAppContextValue() {
       setSel({ kind: "none" });
       return;
     }
+    if (sel.kind === "momentLoads" && sel.ids.length > 0) {
+      removeMomentLoads(new Set(sel.ids));
+      setSel({ kind: "none" });
+      return;
+    }
     if (sel.kind === "distLoads" && sel.ids.length > 0) {
       removeDistLoads(new Set(sel.ids));
       setSel({ kind: "none" });
@@ -228,6 +246,7 @@ function useAppContextValue() {
       removeSupportsByNodeIds(toRemove);
       removeJointsByNodeIds(toRemove);
       removeLoadsByNodeIds(toRemove);
+      removeMomentsByNodeIds(toRemove);
       removeDistLoadsByMemberIds(delIds);
       return next;
     });
@@ -242,6 +261,12 @@ function useAppContextValue() {
   ]);
 
   const handleEscape = useCallback(() => { resetPath(); clearBox(); }, [resetPath, clearBox]);
+
+  // switchMode をラップ: drawモードを離れる時は commitPath、drawモードに入る時も commitPath でパスをリセット
+  const switchModeWithCommit = useCallback((nextMode: Parameters<typeof switchMode>[0]) => {
+    commitPath();
+    switchMode(nextMode);
+  }, [commitPath, switchMode]);
 
   // ----- キーボード -----
   const { spaceDown, shiftDown } = useKeyboard({
@@ -268,7 +293,7 @@ function useAppContextValue() {
     startBox, updateBox, clearBox,
     commitSelBoxFromCurrent,
     // モード
-    mode, switchMode,
+    mode, switchMode: switchModeWithCommit,
     // ノード編集
     selectedNodeId, nodeDrag,
     selectNode, startDrag, endDrag,
@@ -292,6 +317,10 @@ function useAppContextValue() {
     toggleDistLoad,
     startDistRotDrag, updateDistRotDrag, endDistRotDrag,
     removeDistLoads, removeDistLoadsByMemberIds,
+    // モーメント荷重
+    momentLoads,
+    addMomentLoad, flipMomentLoad,
+    removeMomentLoads, removeMomentsByNodeIds, transferMomentToNode,
     // キーボード
     spaceDown, shiftDown,
     // FEM 解析

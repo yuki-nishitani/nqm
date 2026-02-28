@@ -25,7 +25,7 @@ export type ValidationResult = {
 export function validateModel(input: FemInput): ValidationResult {
   const issues: ValidationIssue[] = [];
 
-  const { nodes, members, supports, pointLoads, distLoads } = input;
+  const { nodes, members, supports, pointLoads, distLoads, momentLoads} = input;
 
   // ── 1. 部材がない ──────────────────────────────────
   if (members.length === 0) {
@@ -111,7 +111,7 @@ export function validateModel(input: FemInput): ValidationResult {
   }
 
   // ── 7. 荷重がない ──────────────────────────────────
-  const hasLoad = pointLoads.length > 0 || distLoads.length > 0;
+  const hasLoad = pointLoads.length > 0 || distLoads.length > 0 || momentLoads.length > 0;
   if (!hasLoad) {
     issues.push({
       level: "warning",

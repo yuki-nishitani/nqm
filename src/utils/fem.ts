@@ -203,6 +203,23 @@ function applyDistLoad(
   F[tB]       += mb;
 }
 
+// ===== モーメント荷重 =====
+// Konva座標系(y↓): θ正方向 = 時計回り
+// clockwise=true → +magnitude, clockwise=false → -magnitude
+function applyMomentLoad(
+  F: number[],
+  dofMap: DofMap,
+  nodeId: string,
+  clockwise: boolean,
+  magnitude: number,
+) {
+  const dofs = dofMap.nodeDof.get(nodeId);
+  if (!dofs) return;
+  const rotDof = dofs[2];
+  if (rotDof === -1) return;
+  F[rotDof] += clockwise ? magnitude : -magnitude;
+}
+
 // ===== 境界条件（ペナルティ法） =====
 
 const PENALTY = 1e15;
@@ -344,7 +361,7 @@ export function solveFem(input: FemInput): FemResult {
     };
   }
 
-  const { nodes, members, supports, joints, pointLoads, distLoads } = input;
+  const { nodes, members, supports, joints, pointLoads, distLoads, momentLoads } = input;
   const nodeMap      = new Map(nodes.map(n => [n.id, n]));
   const jointNodeIds = new Set(joints.map(j => j.nodeId));
   const dofMap       = buildDofMap(nodes, members, joints);
@@ -373,6 +390,11 @@ export function solveFem(input: FemInput): FemResult {
   // 集中荷重
   for (const pl of pointLoads) {
     applyPointLoad(F, dofMap, pl.nodeId, pl.angleDeg, pl.magnitude);
+  }
+
+  // モーメント荷重
+  for (const ml of momentLoads) {
+    applyMomentLoad(F, dofMap, ml.nodeId, ml.clockwise, ml.magnitude);
   }
 
   // 等分布荷重（同一部材への複数対応）

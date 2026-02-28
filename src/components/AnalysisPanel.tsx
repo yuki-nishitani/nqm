@@ -2,6 +2,7 @@
  * AnalysisPanel.tsx — 解析実行・結果表示コントロール
  */
 
+import React from "react";
 import { useAppContext } from "../contexts/AppContext";
 
 const PANEL_W = 210;
@@ -59,9 +60,18 @@ export function AnalysisPanel() {
   // 断面力・反力のどれかが表示ONかどうか（スケールスライダーの表示判定）
   const showingDiagram = displayFlags.N || displayFlags.Q || displayFlags.M;
 
+  // ボタンの状態: 優先順位は isStale > isDone > 通常
+  const isDone = !!(hasResult && femResult?.ok && !isStale);
+  const btnLabel = isStale ? "再解析" : isDone ? "✓ 解析完了" : "解析実行";
+  const btnStyle: React.CSSProperties = isStale
+    ? { background: "#e67e22", color: "#fff", border: "none" }
+    : isDone
+    ? { background: "transparent", color: "#27ae60", border: "1.5px solid #27ae60" }
+    : { background: "#2980b9", color: "#fff", border: "none" };
+
   return (
     <div style={{
-      position: "fixed", bottom: 20, right: 20, width: PANEL_W,
+      position: "fixed", bottom: 20, right: 16, width: PANEL_W,
       background: "#1a1a2e", border: "1px solid #333", borderRadius: 8,
       padding: 12, display: "flex", flexDirection: "column", gap: 8,
       boxShadow: "0 4px 20px rgba(0,0,0,0.5)", zIndex: 100, userSelect: "none",
@@ -79,12 +89,14 @@ export function AnalysisPanel() {
 
       {/* 解析実行ボタン */}
       <button onClick={handleRunAnalysis} style={{
-        padding: "8px 0", borderRadius: 5, border: "none",
-        background: isStale ? "#e67e22" : "#2980b9",
-        color: "#fff", fontWeight: "bold", fontSize: 13,
-        cursor: "pointer", transition: "background 0.2s", position: "relative",
+        padding: "8px 0", borderRadius: 5,
+        fontWeight: "bold", fontSize: 13,
+        cursor: "pointer",
+        transition: "background 0.2s, color 0.2s",
+        position: "relative",
+        ...btnStyle,
       }}>
-        {isStale ? "再解析" : "解析実行"}
+        {btnLabel}
         {isStale && (
           <span style={{
             position: "absolute", top: -6, right: -6,
@@ -119,8 +131,6 @@ export function AnalysisPanel() {
       {/* 解析成功時の表示コントロール */}
       {femResult?.ok && (
         <>
-          <div style={{ color: "#27ae60", fontSize: 11 }}>✓ 解析完了</div>
-
           {/* ── 変形図 ── */}
           <div style={{ borderTop: "1px solid #2a2a3a", paddingTop: 6 }}>
             <div style={{ fontSize: 10, color: "#888", marginBottom: 4 }}>変形図</div>

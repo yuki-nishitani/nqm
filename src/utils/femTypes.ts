@@ -46,7 +46,8 @@ export type FemInput = {
   supports:   { id: string; nodeId: string; type: "pin" | "roller" | "fix"; angleDeg: number }[];
   joints:     { id: string; nodeId: string }[];
   pointLoads: { id: string; nodeId: string; angleDeg: number; magnitude: number }[];
-  distLoads:  { id: string; memberId: string; angleDeg: number; magnitude: number }[];
+  distLoads:    { id: string; memberId: string; angleDeg: number; magnitude: number }[];
+  momentLoads:  { id: string; nodeId: string; clockwise: boolean; magnitude: number }[];
 };
 
 export type SectionProps = { EA: number; EI: number };

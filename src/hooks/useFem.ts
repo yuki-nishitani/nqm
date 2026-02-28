@@ -7,6 +7,7 @@ import type { Node2D, Member, Support, Joint, PointLoad, DistLoad } from "../typ
 type UseFemInput = {
   nodes: Node2D[]; members: Member[]; supports: Support[];
   joints: Joint[]; pointLoads: PointLoad[]; distLoads: DistLoad[];
+  momentLoads: { id: string; nodeId: string; clockwise: boolean; magnitude: number }[];
 };
 
 type UseFemReturn = {
@@ -51,7 +52,8 @@ export function useFem(): UseFemReturn {
       supports:   input.supports.map(s => ({ id: s.id, nodeId: s.nodeId, type: s.type, angleDeg: s.angleDeg })),
       joints:     input.joints.map(j => ({ id: j.id, nodeId: j.nodeId })),
       pointLoads: input.pointLoads.map(pl => ({ id: pl.id, nodeId: pl.nodeId, angleDeg: pl.angleDeg, magnitude: pl.magnitude })),
-      distLoads:  input.distLoads.map(dl => ({ id: dl.id, memberId: dl.memberId, angleDeg: dl.angleDeg, magnitude: dl.magnitude })),
+      distLoads:   input.distLoads.map(dl => ({ id: dl.id, memberId: dl.memberId, angleDeg: dl.angleDeg, magnitude: dl.magnitude })),
+      momentLoads: input.momentLoads.map(ml => ({ id: ml.id, nodeId: ml.nodeId, clockwise: ml.clockwise, magnitude: ml.magnitude })),
     };
 
     const vResult = validateModel(femInput);
