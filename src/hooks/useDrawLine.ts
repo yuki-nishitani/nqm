@@ -1,16 +1,50 @@
 import { useState, useMemo, useCallback, useRef } from "react";
 import { Node2D, Member } from "../types";
-import { snap, uid, dist2 } from "../utils/geometry";
+import { snap, uid, dist2, projectPointOnSegment } from "../utils/geometry";
 import { SNAP_R } from "../types";
 
+// ─── ユーティリティ ────────────────────────────────────────────
+/**
+ * 現在の nodes/members を受け取り、
+ * ノード nodeId (座標 x, y) が乗っている全部材を分割する。
+ * 副作用なし。新しい members 配列を返す。
+ */
+function splitMembersOnNode(
+  nodeId: string,
+  x: number,
+  y: number,
+  nodes: Node2D[],
+  members: Member[]
+): Member[] {
+  const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+  let result = [...members];
+
+  for (const m of members) {
+    if (m.a === nodeId || m.b === nodeId) continue; // 既に接続済み
+    const na = nodeMap.get(m.a);
+    const nb = nodeMap.get(m.b);
+    if (!na || !nb) continue;
+
+    const proj = projectPointOnSegment(x, y, na.x, na.y, nb.x, nb.y);
+    if (proj.t > 1e-6 && proj.t < 1 - 1e-6 && proj.dist < 1e-6) {
+      result = result.filter((r) => r.id !== m.id);
+      result.push({ id: uid("M"), a: m.a, b: nodeId });
+      result.push({ id: uid("M"), a: nodeId, b: m.b });
+    }
+  }
+
+  return result;
+}
+
+// ─── Hook ─────────────────────────────────────────────────────
 export function useDrawLine() {
   const [nodes,       setNodes]       = useState<Node2D[]>([]);
   const [members,     setMembers]     = useState<Member[]>([]);
   const [drawPathIds, setDrawPathIds] = useState<string[]>([]);
 
-  // 最新の members/nodes を ref で保持（コールバック内で最新値を同期的に参照するため）
   const membersRef = useRef<Member[]>(members);
   const nodesRef   = useRef<Node2D[]>(nodes);
+
   const setMembersWrapped: typeof setMembers = useCallback((v) => {
     setMembers((prev) => {
       const next = typeof v === "function" ? (v as (p: Member[]) => Member[])(prev) : v;
@@ -18,6 +52,7 @@ export function useDrawLine() {
       return next;
     });
   }, []);
+
   const setNodesWrapped: typeof setNodes = useCallback((v) => {
     setNodes((prev) => {
       const next = typeof v === "function" ? (v as (p: Node2D[]) => Node2D[])(prev) : v;
@@ -43,17 +78,34 @@ export function useDrawLine() {
     return best;
   }
 
+  /**
+   * 新しいノードを追加したとき、そのノードが既存部材上に乗っていれば
+   * その部材を分割する。
+   * ※ ノードが nodes に追加された直後に呼ぶこと。
+   */
+  const _autoSplitOnNode = useCallback((nodeId: string, x: number, y: number) => {
+    setMembersWrapped((prevMembers) => {
+      const currentNodes = nodesRef.current;
+      return splitMembersOnNode(nodeId, x, y, currentNodes, prevMembers);
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   /** ノードを追加 or 既存ノードに接続して線を伸ばす */
   const addPoint = useCallback((wx: number, wy: number) => {
     const x = snap(wx), y = snap(wy);
     const nearby = findNearbyNode(x, y);
     let nodeId: string;
+
     if (nearby) {
       nodeId = nearby.id;
+      // 既存ノードを再利用する場合も、そのノードが部材上に乗っていない保証はないので
+      // 念のりチェック（通常は addPoint 時に既に分割済みのはず）
     } else {
       const newNode: Node2D = { id: uid("N"), x, y };
       setNodesWrapped((prev) => [...prev, newNode]);
       nodeId = newNode.id;
+      // 新ノードが既存部材上に乗っていれば分割
+      _autoSplitOnNode(nodeId, x, y);
     }
 
     setDrawPathIds((prevPath) => {
@@ -68,16 +120,11 @@ export function useDrawLine() {
       });
       return [...prevPath, nodeId];
     });
-  }, [nodes]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [nodes, _autoSplitOnNode]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /**
-   * drawPathIds が1要素（まだメンバーを1本も作っていない孤立ノード）かどうかを判定して
-   * 必要なら削除する共通処理。
-   */
   const _cleanupOrphan = useCallback((prevPath: string[]) => {
     if (prevPath.length !== 1) return;
     const orphanId = prevPath[0];
-    // members（最新 ref）に接続がなければ孤立ノードとして削除
     const isConnected = membersRef.current.some(
       (m) => m.a === orphanId || m.b === orphanId
     );
@@ -86,10 +133,6 @@ export function useDrawLine() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /**
-   * Enter / ダブルクリック / モード変更でパスを確定。
-   * drawPathIds が1要素（孤立ノード）の場合はノードも削除してキャンセル扱いにする。
-   */
   const commitPath = useCallback(() => {
     setDrawPathIds((prevPath) => {
       _cleanupOrphan(prevPath);
@@ -97,9 +140,6 @@ export function useDrawLine() {
     });
   }, [_cleanupOrphan]);
 
-  /**
-   * Escape でパスをリセット。孤立ノード削除も commitPath と同様に行う。
-   */
   const resetPath = useCallback(() => {
     setDrawPathIds((prevPath) => {
       _cleanupOrphan(prevPath);
@@ -107,16 +147,12 @@ export function useDrawLine() {
     });
   }, [_cleanupOrphan]);
 
-  /** 指定 nodeId セットを削除（member削除に連動） */
   const removeNodes = useCallback((toRemove: Set<string>) => {
     if (!toRemove.size) return;
     setNodesWrapped((ns) => ns.filter((n) => !toRemove.has(n.id)));
     setDrawPathIds((p) => p.filter((id) => !toRemove.has(id)));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /**
-   * メンバー memberId を点 (x, y) で分割する。
-   */
   const splitMember = useCallback((memberId: string, x: number, y: number): string | null => {
     const target = membersRef.current.find((m) => m.id === memberId);
     if (!target) return null;
@@ -134,9 +170,6 @@ export function useDrawLine() {
     return newNodeId;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /**
-   * ノードを削除する。接続メンバー数に応じてルールを適用。
-   */
   const deleteNode = useCallback((nodeId: string): Set<string> => {
     const removed = new Set<string>([nodeId]);
     setMembersWrapped((prevMembers) => {
@@ -159,7 +192,7 @@ export function useDrawLine() {
         return dup ? rest : [...rest, { id: uid("M"), a, b: c }];
       }
 
-      // 3本以上
+      // 3本以上: 接続部材を全て切断するだけ
       return rest;
     });
     return removed;
@@ -167,19 +200,28 @@ export function useDrawLine() {
 
   /**
    * ノードを (x, y) に移動する。
+   * 移動後、そのノードが別の既存部材上に乗っていれば自動分割する。
    */
   const moveNode = useCallback((nodeId: string, x: number, y: number, force = false): boolean => {
     const occupied = !force && nodesRef.current.some(
       (n) => n.id !== nodeId && n.x === x && n.y === y
     );
     if (occupied) return false;
+
     setNodesWrapped((ns) => ns.map((n) => n.id === nodeId ? { ...n, x, y } : n));
+
+    // 移動後に部材上に乗っていれば分割
+    // setNodesWrapped は非同期なので ref 経由で最新 nodes を渡す
+    setMembersWrapped((prevMembers) => {
+      const currentNodes = nodesRef.current.map((n) =>
+        n.id === nodeId ? { ...n, x, y } : n
+      );
+      return splitMembersOnNode(nodeId, x, y, currentNodes, prevMembers);
+    });
+
     return true;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /**
-   * ノード B を ノード A にマージする。
-   */
   const mergeNode = useCallback((nodeIdB: string, nodeIdA: string) => {
     setMembersWrapped((prev) => {
       const rewritten = prev.map((m) => {

@@ -30,7 +30,7 @@ export function Sidebar() {
     <div style={{ width: SIDEBAR_W, height: "100%", background: "#141414" }}>
       <Stage width={SIDEBAR_W} height={H} pixelRatio={window.devicePixelRatio || 1}>
         <Layer>
-          <Text x={16} y={14} text="NQM" fill="#ddd" fontStyle="bold" fontSize={16} />
+          <Text x={16} y={26} text="NQM" fill="#ddd" fontStyle="bold" fontSize={16} />
 
           {/* DRAWING */}
           <Text x={16} y={y} text="DRAWING" fill="#fff" fontStyle="normal" fontSize={11} opacity={0.9} />
