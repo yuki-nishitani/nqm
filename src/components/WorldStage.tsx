@@ -27,6 +27,7 @@ export function WorldStage() {
     selectedNodeId, nodeDrag, selectNode, startDrag, endDrag,
     transferSupport, transferJoint, transferLoad,
     spaceDown, shiftDown,
+    arcHandleClick, arcUpdateMouse, arcUpdateRawMouse, arcReset,
   } = useAppContext();
 
   const lastDownRef = useRef<{ t: number; x: number; y: number } | null>(null);
@@ -103,7 +104,10 @@ export function WorldStage() {
         pixelRatio={window.devicePixelRatio || 1}
         draggable={spaceDown}
         onWheel={onWheel}
-        onDblClick={() => { if (mode === "drawLine") commitPath(); }}
+        onDblClick={() => {
+          if (mode === "drawLine") commitPath();
+          if (mode === "drawArc")  arcReset();
+        }}
 
         onMouseMove={() => {
           const wp = getWorldPointer();
@@ -117,6 +121,11 @@ export function WorldStage() {
           }
           if (mode === "drawLine") {
             setPointer({ x: snap(wp.x), y: snap(wp.y) });
+          } else if (mode === "drawArc") {
+            const sx = snap(wp.x), sy = snap(wp.y);
+            setPointer({ x: sx, y: sy });
+            arcUpdateRawMouse(wp.x, wp.y);  // スナップ前の実座標（外積判定用）
+            arcUpdateMouse(sx, sy);          // スナップ済み座標（プレビュー描画用）
           } else {
             if (pointer) setPointer(null);
           }
@@ -273,6 +282,12 @@ export function WorldStage() {
               toggleDistLoad(bestMemberId);
               setSel({ kind: "none" });
             }
+            return;
+          }
+
+          // drawArc
+          if (mode === "drawArc") {
+            arcHandleClick(wp.x, wp.y);
             return;
           }
 

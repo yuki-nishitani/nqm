@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="_レイヤー_1" data-name="レイヤー 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <style>
+      .cls-1 {
+        stroke-miterlimit: 4.4;
+        stroke-width: 2.89px;
+      }
+
+      .cls-1, .cls-2, .cls-3, .cls-4, .cls-5, .cls-6 {
+        fill: none;
+      }
+
+      .cls-1, .cls-2, .cls-3, .cls-4, .cls-6 {
+        stroke-linecap: round;
+      }
+
+      .cls-1, .cls-6 {
+        stroke: #070001;
+      }
+
+      .cls-2 {
+        stroke-dasharray: 7.71 7.71;
+      }
+
+      .cls-2, .cls-3, .cls-4 {
+        stroke: #231815;
+        stroke-width: 3px;
+      }
+
+      .cls-2, .cls-3, .cls-4, .cls-6 {
+        stroke-linejoin: round;
+      }
+
+      .cls-4 {
+        stroke-dasharray: 7.25 7.25;
+      }
+
+      .cls-5 {
+        stroke: #040000;
+        stroke-width: 5px;
+      }
+
+      .cls-6 {
+        stroke-width: 4px;
+      }
+    </style>
+  </defs>
+  <path class="cls-5" d="M18.5,78.61c-11.01-15.78-9.48-37.67,4.6-51.76,14.09-14.08,35.98-15.61,51.76-4.6"/>
+  <circle class="cls-6" cx="23.1" cy="84.09" r="7.16"/>
+  <circle class="cls-6" cx="80.34" cy="26.85" r="7.16"/>
+  <circle class="cls-1" cx="80.34" cy="84.09" r="4.29"/>
+  <line class="cls-4" x1="76.05" y1="84.09" x2="30.26" y2="84.09"/>
+  <g>
+    <line class="cls-3" x1="80.34" y1="79.8" x2="80.34" y2="76.18"/>
+    <line class="cls-2" x1="80.34" y1="68.47" x2="80.34" y2="41.49"/>
+    <line class="cls-3" x1="80.34" y1="37.63" x2="80.34" y2="34.01"/>
+  </g>
+</svg>

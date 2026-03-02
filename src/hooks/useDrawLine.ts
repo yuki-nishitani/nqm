@@ -21,6 +21,8 @@ function splitMembersOnNode(
 
   for (const m of members) {
     if (m.a === nodeId || m.b === nodeId) continue; // 既に接続済み
+    // 円弧メンバーは直線射影で分割できないのでスキップ
+    if (m.curve) continue;
     const na = nodeMap.get(m.a);
     const nb = nodeMap.get(m.b);
     if (!na || !nb) continue;
@@ -28,8 +30,9 @@ function splitMembersOnNode(
     const proj = projectPointOnSegment(x, y, na.x, na.y, nb.x, nb.y);
     if (proj.t > 1e-6 && proj.t < 1 - 1e-6 && proj.dist < 1e-6) {
       result = result.filter((r) => r.id !== m.id);
-      result.push({ id: uid("M"), a: m.a, b: nodeId });
-      result.push({ id: uid("M"), a: nodeId, b: m.b });
+      // curve を引き継ぐ（直線の場合は undefined なので問題なし）
+      result.push({ id: uid("M"), a: m.a, b: nodeId, curve: m.curve });
+      result.push({ id: uid("M"), a: nodeId, b: m.b, curve: m.curve });
     }
   }
 
@@ -232,7 +235,9 @@ export function useDrawLine() {
       const noLoop = rewritten.filter((m) => m.a !== m.b);
       const seen = new Set<string>();
       const deduped = noLoop.filter((m) => {
-        const key = [m.a, m.b].sort().join(":");
+        // curve の種別も含めたキーで重複判定（円弧と直線は別物）
+        const curveKey = m.curve ? `${m.curve.type}` : "line";
+        const key = [...[m.a, m.b].sort(), curveKey].join(":");
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -242,6 +247,66 @@ export function useDrawLine() {
     setNodesWrapped((ns) => ns.filter((n) => n.id !== nodeIdB));
     setDrawPathIds((p) => p.filter((id) => id !== nodeIdB));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /**
+   * 円弧メンバーを追加する。
+   * 端点 (ax,ay), (bx,by) は snap 済み座標で渡す。
+   * 既存ノードが近傍にあれば再利用し、なければ新規作成する。
+   * 端点が既存部材上に乗っている場合は自動分割する。
+   */
+  const addArcMember = useCallback((
+    ax: number, ay: number,
+    bx: number, by: number,
+    bulge: number,
+  ): { nodeIdA: string; nodeIdB: string } | null => {
+    if (Math.hypot(bx - ax, by - ay) < 1e-6) return null;
+
+    // ノードA を確定
+    const nearA = nodesRef.current.find(
+      (n) => Math.hypot(n.x - ax, n.y - ay) < SNAP_R
+    );
+    let nodeIdA: string;
+    if (nearA) {
+      nodeIdA = nearA.id;
+    } else {
+      nodeIdA = uid("N");
+      const newNodeA: Node2D = { id: nodeIdA, x: ax, y: ay };
+      setNodesWrapped((prev) => [...prev, newNodeA]);
+      _autoSplitOnNode(nodeIdA, ax, ay);
+    }
+
+    // ノードB を確定（ref から最新を参照）
+    const nearB = nodesRef.current.find(
+      (n) => n.id !== nodeIdA && Math.hypot(n.x - bx, n.y - by) < SNAP_R
+    );
+    let nodeIdB: string;
+    if (nearB) {
+      nodeIdB = nearB.id;
+    } else {
+      nodeIdB = uid("N");
+      const newNodeB: Node2D = { id: nodeIdB, x: bx, y: by };
+      setNodesWrapped((prev) => [...prev, newNodeB]);
+      _autoSplitOnNode(nodeIdB, bx, by);
+    }
+
+    // 重複チェック（同じ端点・同じ曲線種別のメンバーのみ重複とみなす）
+    setMembersWrapped((prev) => {
+      const dup = prev.some(
+        (m) =>
+          m.curve?.type === "arc" &&
+          ((m.a === nodeIdA && m.b === nodeIdB) || (m.a === nodeIdB && m.b === nodeIdA))
+      );
+      if (dup) return prev;
+      return [...prev, {
+        id: uid("M"),
+        a: nodeIdA,
+        b: nodeIdB,
+        curve: { type: "arc" as const, bulge },
+      }];
+    });
+
+    return { nodeIdA, nodeIdB };
+  }, [_autoSplitOnNode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
     nodes,
@@ -258,5 +323,6 @@ export function useDrawLine() {
     deleteNode,
     moveNode,
     mergeNode,
+    addArcMember,
   };
 }

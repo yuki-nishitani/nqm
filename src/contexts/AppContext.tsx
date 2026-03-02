@@ -3,6 +3,7 @@ import Konva from "konva";
 
 import { useWindowSize, useLatest } from "../hooks/useUtils";
 import { useDrawLine }  from "../hooks/useDrawLine";
+import { useDrawArc }   from "../hooks/useDrawArc";
 import { useSupports }  from "../hooks/useSupports";
 import { useJoints }    from "../hooks/useJoints";
 import { usePointLoads } from "../hooks/usePointLoads";
@@ -32,10 +33,23 @@ function useAppContextValue() {
     drawPathIds, nodeById, findNearbyNode,
     addPoint, commitPath, resetPath, removeNodes,
     splitMember, deleteNode, moveNode, mergeNode,
+    addArcMember,
   } = useDrawLine();
 
   const membersRef  = useLatest(members);
   const nodeByIdRef = useLatest(nodeById);
+
+  // ----- 円弧描画 -----
+  const {
+    arcState,
+    anticlockwise,
+    preview: arcPreview,
+    handleClick: arcHandleClick,
+    updateMouse: arcUpdateMouse,
+    updateRawMouse: arcUpdateRawMouse,
+    reset: arcReset,
+    toggleDirection: arcToggleDirection,
+  } = useDrawArc(addArcMember);
 
   // ----- 選択 -----
   const {
@@ -260,13 +274,14 @@ function useAppContextValue() {
     joints, pointLoads,
   ]);
 
-  const handleEscape = useCallback(() => { resetPath(); clearBox(); }, [resetPath, clearBox]);
+  const handleEscape = useCallback(() => { resetPath(); arcReset(); clearBox(); }, [resetPath, arcReset, clearBox]);
 
   // switchMode をラップ: drawモードを離れる時は commitPath、drawモードに入る時も commitPath でパスをリセット
   const switchModeWithCommit = useCallback((nextMode: Parameters<typeof switchMode>[0]) => {
     commitPath();
+    arcReset();
     switchMode(nextMode);
-  }, [commitPath, switchMode]);
+  }, [commitPath, arcReset, switchMode]);
 
   // ----- キーボード -----
   const { spaceDown, shiftDown } = useKeyboard({
@@ -286,7 +301,12 @@ function useAppContextValue() {
     drawPathIds, nodeById, findNearbyNode,
     addPoint, commitPath, resetPath, removeNodes,
     splitMember, deleteNode, moveNode, mergeNode,
+    addArcMember,
     membersRef,
+    // 円弧描画
+    arcState, anticlockwise,
+    arcPreview, arcHandleClick, arcUpdateMouse, arcUpdateRawMouse,
+    arcReset, arcToggleDirection,
     // 選択
     sel, setSel,
     boxStart, selBox, selectedSet,

@@ -30,7 +30,7 @@ export function IconButton({ x, y, w, h, active, svgText, onClick }: IconButtonP
         x={x + ICON_PAD} y={y + ICON_PAD}
         w={w - ICON_PAD * 2} h={h - ICON_PAD * 2}
         stroke={BLUE}
-        fill={active ? WHITE : "rgba(255,255,255,0.12)"}
+        fill="transparent"
         listening={false}
       />
     </>

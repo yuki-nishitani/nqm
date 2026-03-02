@@ -23,6 +23,7 @@ import type {
 } from "./femTypes";
 import { DEFAULT_SECTION } from "./femTypes";
 import { validateModel } from "./validate";
+import { expandArcMembers } from "./arcExpand";
 
 // ===== ユーティリティ =====
 
@@ -289,7 +290,7 @@ function calcElementForces(
   dofMap: DofMap,
   jointNodeIds: Set<string>,
   distLoadsForMember: { angleDeg: number; magnitude: number }[],
-): ElementResult {
+): ElementResult & { faGlobal: number[] } {
   const dofsA = dofMap.nodeDof.get(nodeIdA)!;
   const dofsB = dofMap.nodeDof.get(nodeIdB)!;
   const tAIdx = getRotDof(memberId, nodeIdA, dofMap, jointNodeIds);
@@ -347,7 +348,17 @@ function calcElementForces(
     });
   }
 
-  return { memberId, Na, Qa, Ma, Nb, Qb, Mb, points };
+  // グローバル座標系での材端力（反力計算用）
+  // faGlobal[0,1,2] = a端の fx,fy,m、faGlobal[3,4,5] = b端の fx,fy,m
+  const faGlobal = [
+     fa[0]*c - fa[1]*s,   // a端 fx
+     fa[0]*s + fa[1]*c,   // a端 fy
+     fa[2],               // a端 m
+    -fa[3]*c + fa[4]*s,   // b端 fx（b端はuが逆なのでマイナス）
+    -fa[3]*s - fa[4]*c,   // b端 fy
+    -fa[5],               // b端 m
+  ];
+  return { memberId, Na, Qa, Ma, Nb, Qb, Mb, points, faGlobal };
 }
 // ===== メインソルバー =====
 
@@ -361,7 +372,10 @@ export function solveFem(input: FemInput): FemResult {
     };
   }
 
-  const { nodes, members, supports, joints, pointLoads, distLoads, momentLoads } = input;
+  // ---- 円弧部材をサブ要素に展開 ----
+  const exp = expandArcMembers(input);
+
+  const { nodes, members, supports, joints, pointLoads, distLoads, momentLoads } = exp;
   const nodeMap      = new Map(nodes.map(n => [n.id, n]));
   const jointNodeIds = new Set(joints.map(j => j.nodeId));
   const dofMap       = buildDofMap(nodes, members, joints);
@@ -398,7 +412,6 @@ export function solveFem(input: FemInput): FemResult {
   }
 
   // 等分布荷重（同一部材への複数対応）
-  // Map<memberId, DistLoad[]> で集約
   const distLoadsByMember = new Map<string, typeof distLoads>();
   for (const dl of distLoads) {
     const arr = distLoadsByMember.get(dl.memberId) ?? [];
@@ -432,7 +445,7 @@ export function solveFem(input: FemInput): FemResult {
     return { ok: false, reason: "unstable", message: "構造が不安定です。支点条件を確認してください。" };
   }
 
-  // 断面力
+  // ---- 断面力の計算（展開済みサブ部材をそのまま使用）----
   const elementResults: ElementResult[] = [];
   for (const m of members) {
     const nA = nodeMap.get(m.a)!;
@@ -445,29 +458,58 @@ export function solveFem(input: FemInput): FemResult {
     ));
   }
 
-  // 反力（拘束DOFごとに K*U - F を計算）
-  const reactions: ReactionResult[] = [];
-  for (const sup of supports) {
-    const dofs = dofMap.nodeDof.get(sup.nodeId);
-    if (!dofs) continue;
-    const [uxDof, uyDof, rotDof] = dofs;
+  // 反力：支点ノードに接続する部材の材端力（グローバル座標）合計から算出。
+  // ペナルティ法の K*U-F は数値誤差が大きいため、材端力ベースに切り替え。
+  //
+  // 符号：部材がノードに及ぼす力 = -（ノードが部材に及ぼす力）
+  //   a端に支点 → ノードへの力 = -faGlobal[0,1,2]
+  //   b端に支点 → ノードへの力 = -faGlobal[3,4,5]
+  // さらに反力は外力と逆符号なので全体を符号反転して反力 = 部材力の合計。
 
-    const reactionAtDof = (dof: number) => {
-      let r = 0;
-      for (let j = 0; j < N; j++) r += K[dof][j] * dispArray[j];
-      r -= F[dof];
-      return r;
-    };
+  // 支点ノードID → 材端力の累積
+  const nodeForceAccum = new Map<string, [number, number, number]>();
+  for (const el of elementResults) {
+    const m = members.find(m => m.id === el.memberId)!;
+    const { faGlobal } = el as ElementResult & { faGlobal: number[] };
 
-    const rx = reactionAtDof(uxDof);
-    const ry = reactionAtDof(uyDof);
-    // モーメント反力: fix のみ、かつ nodeθ が存在する場合
-    const rm = (sup.type === "fix" && rotDof !== -1) ? reactionAtDof(rotDof) : 0;
+    // a端
+    if (!nodeForceAccum.has(m.a)) nodeForceAccum.set(m.a, [0, 0, 0]);
+    const accA = nodeForceAccum.get(m.a)!;
+    accA[0] += faGlobal[0];
+    accA[1] += faGlobal[1];
+    accA[2] += faGlobal[2];
 
-    reactions.push({ supportId: sup.id, nodeId: sup.nodeId, fx: rx, fy: ry, m: rm });
+    // b端
+    if (!nodeForceAccum.has(m.b)) nodeForceAccum.set(m.b, [0, 0, 0]);
+    const accB = nodeForceAccum.get(m.b)!;
+    accB[0] += faGlobal[3];
+    accB[1] += faGlobal[4];
+    accB[2] += faGlobal[5];
   }
 
-  // 変位結果
+  // 外力ベクトル F のノードへの寄与を材端力から差し引く（分布荷重等の固定端力分）
+  // → 材端力の合計は「節点に作用する内力」なので、外力との差が反力
+
+  const reactions: ReactionResult[] = [];
+  for (const sup of supports) {
+    const acc = nodeForceAccum.get(sup.nodeId) ?? [0, 0, 0];
+    // 外力を差し引く（pointLoad等は F[] に入っているが材端力に含まれないため）
+    const dofs = dofMap.nodeDof.get(sup.nodeId);
+    if (!dofs) continue;
+    const extFx = F[dofs[0]];
+    const extFy = F[dofs[1]];
+    const extM  = dofs[2] !== -1 ? F[dofs[2]] : 0;
+
+    reactions.push({
+      supportId: sup.id,
+      nodeId: sup.nodeId,
+      fx: acc[0] - extFx,
+      fy: acc[1] - extFy,
+      m:  (sup.type === "fix") ? acc[2] - extM : 0,
+    });
+  }
+
+  // 変位結果（展開済み全ノード）
   const displacements: DisplacementResult[] = nodes.map(n => {
     const d = dofMap.nodeDof.get(n.id)!;
     return {
@@ -478,5 +520,14 @@ export function solveFem(input: FemInput): FemResult {
     };
   });
 
-  return { ok: true, elements: elementResults, reactions, displacements };
+  return {
+    ok: true,
+    elements:        elementResults,
+    reactions,
+    displacements,
+    expandedNodes:   nodes,
+    expandedMembers: members,
+    arcGroupMap:     exp.arcGroupMap,
+    arcMemberGeom:   exp.arcMemberGeom,
+  };
 }

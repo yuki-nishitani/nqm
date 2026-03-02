@@ -9,6 +9,7 @@ import {
 
 import selectSvgText   from "../assets/icons/select.svg?raw";
 import lineSvgText     from "../assets/icons/line.svg?raw";
+import arcSvgText      from "../assets/icons/arc.svg?raw";
 import pinSvgText      from "../assets/icons/pin.svg?raw";
 import rollerSvgText   from "../assets/icons/roller.svg?raw";
 import fixSvgText      from "../assets/icons/fix.svg?raw";
@@ -30,19 +31,20 @@ export function Sidebar() {
     <div style={{ width: SIDEBAR_W, height: "100%", background: "#141414" }}>
       <Stage width={SIDEBAR_W} height={H} pixelRatio={window.devicePixelRatio || 1}>
         <Layer>
-          <Text x={16} y={26} text="NQM" fill="#ddd" fontStyle="bold" fontSize={16} />
+          <Text x={20} y={26} text="NQM" fill="#ddd" fontStyle="bold" fontSize={16} />
 
           {/* DRAWING */}
-          <Text x={16} y={y} text="DRAWING" fill="#fff" fontStyle="normal" fontSize={11} opacity={0.9} />
+          <Text x={20} y={y} text="DRAWING" fill="#fff" fontStyle="normal" fontSize={11} opacity={0.9} />
           {(() => { y += LABEL_H; return null; })()}
           <IconButton x={x0} y={y} w={BTN_W} h={BTN_H} active={mode === "select"}   svgText={selectSvgText}   onClick={() => switchMode("select")} />
           <IconButton x={x1} y={y} w={BTN_W} h={BTN_H} active={mode === "drawLine"} svgText={lineSvgText}     onClick={() => switchMode("drawLine")} />
-          {(() => { y += ROW_H + ROW_GAP + 2; return null; })()}
-          <IconButton x={x0} y={y} w={BTN_W} h={BTN_H} active={mode === "nodeEdit"} svgText={nodeEditSvgText} onClick={() => switchMode("nodeEdit")} />
+          {(() => { y += ROW_H + ROW_GAP; return null; })()}
+          <IconButton x={x0} y={y} w={BTN_W} h={BTN_H} active={mode === "drawArc"}  svgText={arcSvgText}      onClick={() => switchMode("drawArc")} />
+          <IconButton x={x1} y={y} w={BTN_W} h={BTN_H} active={mode === "nodeEdit"} svgText={nodeEditSvgText} onClick={() => switchMode("nodeEdit")} />
           {(() => { y += ROW_H + ROW_GAP + 2; return null; })()}
 
           {/* SUPPORT */}
-          <Text x={16} y={y} text="SUPPORT" fill="#fff" fontStyle="normal" fontSize={11} opacity={0.9} />
+          <Text x={20} y={y} text="SUPPORT" fill="#fff" fontStyle="normal" fontSize={11} opacity={0.9} />
           {(() => { y += LABEL_H; return null; })()}
           <IconButton x={x0} y={y} w={BTN_W} h={BTN_H} active={mode === "supportPin"}    svgText={pinSvgText}    onClick={() => switchMode("supportPin")} />
           <IconButton x={x1} y={y} w={BTN_W} h={BTN_H} active={mode === "supportRoller"} svgText={rollerSvgText} onClick={() => switchMode("supportRoller")} />
@@ -51,13 +53,13 @@ export function Sidebar() {
           {(() => { y += ROW_H + ROW_GAP; return null; })()}
 
           {/* JOINT */}
-          <Text x={16} y={y} text="JOINT" fill="#fff" fontStyle="normal" fontSize={11} opacity={0.9} />
+          <Text x={20} y={y} text="JOINT" fill="#fff" fontStyle="normal" fontSize={11} opacity={0.9} />
           {(() => { y += LABEL_H; return null; })()}
           <IconButton x={x0} y={y} w={BTN_W} h={BTN_H} active={mode === "joint"} svgText={jointSvgText} onClick={() => switchMode("joint")} />
           {(() => { y += ROW_H + ROW_GAP; return null; })()}
 
           {/* LOAD */}
-          <Text x={16} y={y} text="LOAD" fill="#fff" fontStyle="normal" fontSize={11} opacity={0.9} />
+          <Text x={20} y={y} text="LOAD" fill="#fff" fontStyle="normal" fontSize={11} opacity={0.9} />
           {(() => { y += LABEL_H; return null; })()}
           <IconButton x={x0} y={y} w={BTN_W} h={BTN_H} active={mode === "load"}     svgText={loadSvgText}     onClick={() => switchMode("load")} />
           <IconButton x={x1} y={y} w={BTN_W} h={BTN_H} active={mode === "distLoad"} svgText={distloadSvgText} onClick={() => switchMode("distLoad")} />

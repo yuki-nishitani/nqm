@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { solveFem } from "../utils/fem";
 import { validateModel, type ValidationResult } from "../utils/validate";
-import type { FemResult, FemInput, DisplayFlags } from "../utils/femTypes";
+import type { FemResult, FemInput, DisplayFlags, ExpandedNode, ExpandedMember } from "../utils/femTypes";
 import type { Node2D, Member, Support, Joint, PointLoad, DistLoad } from "../types";
 
 type UseFemInput = {
@@ -48,7 +48,10 @@ export function useFem(): UseFemReturn {
   const runAnalysis = useCallback((input: UseFemInput) => {
     const femInput: FemInput = {
       nodes:      input.nodes.map(n => ({ id: n.id, x: n.x, y: n.y })),
-      members:    input.members.map(m => ({ id: m.id, a: m.a, b: m.b })),
+      members:    input.members.map(m => ({
+        id: m.id, a: m.a, b: m.b,
+        ...(m.curve?.type === "arc" ? { curve: { type: "arc" as const, bulge: m.curve.bulge } } : {}),
+      })),
       supports:   input.supports.map(s => ({ id: s.id, nodeId: s.nodeId, type: s.type, angleDeg: s.angleDeg })),
       joints:     input.joints.map(j => ({ id: j.id, nodeId: j.nodeId })),
       pointLoads: input.pointLoads.map(pl => ({ id: pl.id, nodeId: pl.nodeId, angleDeg: pl.angleDeg, magnitude: pl.magnitude })),

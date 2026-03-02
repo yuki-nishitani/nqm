@@ -1,8 +1,15 @@
 // ===== 型定義 =====
 export type Node2D    = { id: string; x: number; y: number };
-export type Member    = { id: string; a: string; b: string };
+
+// 曲線メンバーの種別
+export type MemberCurve =
+  | { type: "arc";    bulge: number }
+  | { type: "bezier"; cp1x: number; cp1y: number; cp2x: number; cp2y: number };
+
+export type Member    = { id: string; a: string; b: string; curve?: MemberCurve };
+
 export type Selection = { kind: "none" } | { kind: "members"; ids: string[] } | { kind: "supports"; ids: string[] } | { kind: "joints"; ids: string[] } | { kind: "loads"; ids: string[] } | { kind: "distLoads"; ids: string[] } | { kind: "momentLoads"; ids: string[] } | { kind: "node"; id: string };
-export type Mode      = "select" | "drawLine" | "supportPin" | "supportRoller" | "supportFix" | "joint" | "load" | "nodeEdit" | "distLoad" | "momentLoad";
+export type Mode      = "select" | "drawLine" | "drawArc" | "supportPin" | "supportRoller" | "supportFix" | "joint" | "load" | "nodeEdit" | "distLoad" | "momentLoad";
 export type SupportType = "pin" | "roller" | "fix";
 export type Support  = { id: string; nodeId: string; type: SupportType; angleDeg: number };
 export type Joint    = { id: string; nodeId: string };
@@ -33,6 +40,6 @@ export const GAP          = 7;
 export const BTN_W        = (SIDEBAR_W - PAD * 2 - GAP) / 2;
 export const BTN_H        = BTN_W;
 export const BTN_Y        = 50;
-export const FOOTER_X     = 16;
+export const FOOTER_X     = 20;
 export const FOOTER_LINE_H = 18;
 export const FOOTER_LINES = 6;

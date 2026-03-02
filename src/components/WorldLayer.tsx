@@ -1,5 +1,5 @@
 import Konva from "konva";
-import { Layer, Circle, Line, Rect, Shape, Text } from "react-konva";
+import { Layer, Circle, Line, Rect, Shape, Text, Path } from "react-konva";
 import React, { useCallback } from "react";
 
 import { SvgIconShape } from "../SvgIconShape";
@@ -12,6 +12,7 @@ import {
   BLUE, WHITE, YELLOW,
   START_MARKER_RADIUS,
 } from "../types";
+import { bulgeToSvgPath } from "../utils/curveUtils";
 
 import pinSvgText        from "../assets/icons/pin.svg?raw";
 import rollerSvgText     from "../assets/icons/roller.svg?raw";
@@ -40,6 +41,7 @@ export function WorldLayer({ getWorldPointer, draft, draftPolyline, startMarker 
     distLoads, distRotDrag, startDistRotDrag,
     momentLoads, flipMomentLoad,
     selectedNodeId, startDrag,
+    arcPreview, arcState,
   } = useAppContext();
 
   // グリッド描画
@@ -115,24 +117,43 @@ export function WorldLayer({ getWorldPointer, draft, draftPolyline, startMarker 
         );
       })}
 
-      {/* メンバー（線） */}
+      {/* メンバー（直線 / 円弧） */}
       {members.map((m) => {
         const a = nodeById.get(m.a), b = nodeById.get(m.b);
         if (!a || !b) return null;
         const isSel = selectedSet.has(m.id);
+        const stroke = isSel ? BLUE : WHITE;
+        const strokeWidth = isSel ? 4 : 2;
+        const onMouseDown = (ev: Konva.KonvaEventObject<MouseEvent>) => {
+          if (mode !== "select") return;
+          ev.cancelBubble = true;
+          setSel({ kind: "members", ids: [m.id] });
+          clearBox();
+        };
+
+        if (m.curve?.type === "arc") {
+          const path = bulgeToSvgPath(a.x, a.y, b.x, b.y, m.curve.bulge);
+          return (
+            <Path
+              key={m.id}
+              data={path}
+              stroke={stroke}
+              strokeWidth={strokeWidth}
+              fillEnabled={false}
+              hitStrokeWidth={12}
+              onMouseDown={onMouseDown}
+            />
+          );
+        }
+
         return (
           <Line
             key={m.id}
             points={[a.x, a.y, b.x, b.y]}
-            stroke={isSel ? BLUE : WHITE}
-            strokeWidth={isSel ? 4 : 2}
+            stroke={stroke}
+            strokeWidth={strokeWidth}
             hitStrokeWidth={12}
-            onMouseDown={(ev: Konva.KonvaEventObject<MouseEvent>) => {
-              if (mode !== "select") return;
-              ev.cancelBubble = true;
-              setSel({ kind: "members", ids: [m.id] });
-              clearBox();
-            }}
+            onMouseDown={onMouseDown}
           />
         );
       })}
@@ -399,8 +420,96 @@ export function WorldLayer({ getWorldPointer, draft, draftPolyline, startMarker 
       )}
 
       {/* カーソルドット */}
-      {mode === "drawLine" && pointer && (
+      {(mode === "drawLine" || mode === "drawArc") && pointer && (
         <Circle x={pointer.x} y={pointer.y} radius={3} fill="#7ff" opacity={0.8} listening={false} />
+      )}
+
+      {/* 円弧描画プレビュー */}
+      {mode === "drawArc" && (() => {
+        const p = arcPreview();
+        if (p.kind === "none") return null;
+
+        if (p.kind === "radius") {
+          // step1完了: 中心点 + 半径ガイド線
+          return (
+            <>
+              {/* 中心マーカー */}
+              <Circle
+                x={p.cx} y={p.cy} radius={5}
+                stroke="#7ff" strokeWidth={1.5}
+                fill="rgba(127,255,255,0.2)"
+                listening={false}
+              />
+              {/* 半径ガイド線 */}
+              <Line
+                points={[p.cx, p.cy, p.mx, p.my]}
+                stroke="#7ff" strokeWidth={1} dash={[4, 4]}
+                listening={false}
+              />
+              {/* マウス位置（開始点候補） */}
+              <Circle
+                x={p.mx} y={p.my} radius={3}
+                fill="#7ff" opacity={0.6} listening={false}
+              />
+            </>
+          );
+        }
+
+        if (p.kind === "arc") {
+          // step2完了: 円弧プレビュー
+          return (
+            <>
+              {/* 中心マーカー */}
+              <Circle
+                x={p.cx} y={p.cy} radius={4}
+                stroke="#7ff" strokeWidth={1.5}
+                fill="rgba(127,255,255,0.2)"
+                listening={false}
+              />
+              {/* 中心→開始点の補助線 */}
+              <Line
+                points={[p.cx, p.cy, p.ax, p.ay]}
+                stroke="#7ff" strokeWidth={1} dash={[4, 4]} opacity={0.4}
+                listening={false}
+              />
+              {/* 中心→終了点の補助線 */}
+              <Line
+                points={[p.cx, p.cy, p.bx, p.by]}
+                stroke="#7ff" strokeWidth={1} dash={[4, 4]} opacity={0.4}
+                listening={false}
+              />
+              {/* 円弧プレビュー本体 */}
+              <Path
+                data={p.svgPath}
+                stroke="#7ff" strokeWidth={2} dash={[6, 4]}
+                fillEnabled={false}
+                listening={false}
+              />
+              {/* 開始点マーカー */}
+              <Circle
+                x={p.ax} y={p.ay} radius={START_MARKER_RADIUS}
+                stroke="#7ff" strokeWidth={2} listening={false}
+              />
+              {/* 終了点（スナップ候補） */}
+              <Circle
+                x={p.bx} y={p.by} radius={3}
+                fill="#7ff" opacity={0.8} listening={false}
+              />
+            </>
+          );
+        }
+
+        return null;
+      })()}
+
+      {/* drawArc: 中心点確定前のステップ表示 */}
+      {mode === "drawArc" && arcState.step === "idle" && pointer && (
+        <Circle
+          x={pointer.x} y={pointer.y} radius={4}
+          stroke="#7ff" strokeWidth={1.5}
+          fill="rgba(127,255,255,0.15)"
+          listening={false}
+        />
       )}
     </Layer>
   );
