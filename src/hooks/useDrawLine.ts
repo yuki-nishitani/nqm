@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useRef } from "react";
 import { Node2D, Member } from "../types";
 import { snap, uid, dist2, projectPointOnSegment } from "../utils/geometry";
+import { bulgeToArc } from "../utils/curveUtils";
 import { SNAP_R } from "../types";
 
 // ─── ユーティリティ ────────────────────────────────────────────
@@ -163,11 +164,50 @@ export function useDrawLine() {
     const newNodeId = uid("N");
     const newNode: Node2D = { id: newNodeId, x, y };
 
+    // 円弧メンバーの場合、各セグメントの bulge を再計算する
+    // bulge = tan(θ/4)  なので、中心角を分割比 t で按分する
+    let curveA = target.curve;
+    let curveB = target.curve;
+    if (target.curve?.type === "arc") {
+      const nA = nodesRef.current.find((n) => n.id === target.a);
+      const nB = nodesRef.current.find((n) => n.id === target.b);
+      if (nA && nB) {
+        const { cx, cy, r, startAngle, endAngle, anticlockwise } = bulgeToArc(
+          nA.x, nA.y, nB.x, nB.y, target.curve.bulge
+        );
+        // 中心角（符号付き）
+        let totalSweep = endAngle - startAngle;
+        if (!anticlockwise && totalSweep <= 0) totalSweep += 2 * Math.PI;
+        if ( anticlockwise && totalSweep >= 0) totalSweep -= 2 * Math.PI;
+
+        // 分割点 P の角度から t を逆算
+        const angleP = Math.atan2(y - cy, x - cx);
+        let sweepToP = angleP - startAngle;
+        // sweepToP を totalSweep と同符号・同範囲に正規化
+        if (totalSweep > 0) {
+          sweepToP = ((sweepToP % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+          if (sweepToP > Math.abs(totalSweep) + 1e-9) sweepToP -= 2 * Math.PI;
+        } else {
+          sweepToP = -(((-sweepToP) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+          if (sweepToP < totalSweep - 1e-9) sweepToP += 2 * Math.PI;
+        }
+        const t = Math.max(0, Math.min(1, sweepToP / totalSweep));
+
+        // 各セグメントの中心角から bulge を再計算
+        const sweepA = totalSweep * t;
+        const sweepB = totalSweep * (1 - t);
+        const bulgeA = Math.abs(sweepA) < 1e-9 ? 0 : Math.tan(sweepA / 4);
+        const bulgeB = Math.abs(sweepB) < 1e-9 ? 0 : Math.tan(sweepB / 4);
+        curveA = Math.abs(bulgeA) < 1e-9 ? undefined : { type: "arc" as const, bulge: bulgeA };
+        curveB = Math.abs(bulgeB) < 1e-9 ? undefined : { type: "arc" as const, bulge: bulgeB };
+      }
+    }
+
     setNodesWrapped((prevNodes) => [...prevNodes, newNode]);
     setMembersWrapped((prevMembers) => [
       ...prevMembers.filter((m) => m.id !== memberId),
-      { id: uid("M"), a: target.a, b: newNodeId },
-      { id: uid("M"), a: newNodeId, b: target.b },
+      { id: uid("M"), a: target.a, b: newNodeId, curve: curveA },
+      { id: uid("M"), a: newNodeId, b: target.b, curve: curveB },
     ]);
 
     return newNodeId;

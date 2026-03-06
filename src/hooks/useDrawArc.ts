@@ -125,6 +125,35 @@ export function useDrawArc(
     prevRawAngleRef.current = currentAngle;
   }, []);
 
+  /**
+   * 累積角度と円の状態から、プレビューと同一の終点・bulge を計算するヘルパー。
+   * preview() と handleClick() の両方がこれを使うことで、
+   * 「表示される円弧 = コミットされる円弧」を保証する。
+   */
+  const calcArcFromAccum = useCallback((
+    cx: number, cy: number, r: number,
+    ax: number, ay: number,
+    accum: number,
+  ): { bx: number; by: number; bulge: number; anticlockwise: boolean } | null => {
+    if (Math.abs(accum) < 1e-6) return null;
+
+    const startAngle = Math.atan2(ay - cy, ax - cx);
+    const endAngle   = startAngle + accum;
+    const bx = cx + r * Math.cos(endAngle);
+    const by = cy + r * Math.sin(endAngle);
+
+    if (Math.hypot(bx - ax, by - ay) < 1e-6) return null;
+
+    const naturalAnticlockwise = accum >= 0;
+
+    let bulge = arcToBulge(cx, cy, ax, ay, bx, by, naturalAnticlockwise);
+    if (Math.abs(bulge) > 1) {
+      bulge = arcToBulge(cx, cy, ax, ay, bx, by, !naturalAnticlockwise);
+    }
+
+    return { bx, by, bulge, anticlockwise: naturalAnticlockwise };
+  }, []);
+
   /** クリック: ステップを進める（全座標グリッドスナップ） */
   const handleClick = useCallback((wx: number, wy: number) => {
     const px = snap(wx);
@@ -140,24 +169,18 @@ export function useDrawArc(
     }
 
     if (committed) {
-      const { ax, ay, bx, by } = committed;
-
       if (prev.step === "hasStart") {
-        const { cx, cy } = prev;
+        const { cx, cy, r, ax, ay } = prev;
 
-        // クリック時点の累積角度で方向を確定
-        const naturalAnticlockwise = accumAngleRef.current >= 0;
-
-        let bulge = arcToBulge(cx, cy, ax, ay, bx, by, naturalAnticlockwise);
-        // 念のため |bulge| > 1 なら反転
-        if (Math.abs(bulge) > 1) {
-          bulge = arcToBulge(cx, cy, ax, ay, bx, by, !naturalAnticlockwise);
+        // ★ advanceArcDraw が返す bx/by（スナップ座標）ではなく、
+        //    プレビューと同じ累積角度ベースの終点・bulge を使う
+        const result = calcArcFromAccum(cx, cy, r, ax, ay, accumAngleRef.current);
+        if (result) {
+          addArcMember(ax, ay, result.bx, result.by, result.bulge);
         }
-
-        addArcMember(ax, ay, bx, by, bulge);
       }
     }
-  }, [addArcMember, setArcStateSync, resetAccum]);
+  }, [addArcMember, setArcStateSync, resetAccum, calcArcFromAccum]);
 
   /** 回転方向トグル（Tab キーなどに割り当てる想定） */
   const toggleDirection = useCallback(() => {
@@ -198,25 +221,10 @@ export function useDrawArc(
     if (arcState.step === "hasStart") {
       const { cx, cy, r, ax, ay } = arcState;
 
-      const accum = accumAngleRef.current;
-      if (Math.abs(accum) < 1e-6) return { kind: "none" };
+      const result = calcArcFromAccum(cx, cy, r, ax, ay, accumAngleRef.current);
+      if (!result) return { kind: "none" };
 
-      // 累積角度から終点を計算
-      const startAngle = Math.atan2(ay - cy, ax - cx);
-      const endAngle   = startAngle + accum;
-      const bx = cx + r * Math.cos(endAngle);
-      const by = cy + r * Math.sin(endAngle);
-
-      if (Math.hypot(bx - ax, by - ay) < 1e-6) return { kind: "none" };
-
-      // 累積の符号で方向確定（正 = 反時計回り、負 = 時計回り）
-      const naturalAnticlockwise = accum >= 0;
-
-      let bulge = arcToBulge(cx, cy, ax, ay, bx, by, naturalAnticlockwise);
-      if (Math.abs(bulge) > 1) {
-        bulge = arcToBulge(cx, cy, ax, ay, bx, by, !naturalAnticlockwise);
-      }
-
+      const { bx, by, bulge, anticlockwise: naturalAnticlockwise } = result;
       const svgPath = bulgeToSvgPath(ax, ay, bx, by, bulge);
 
       return {
@@ -230,7 +238,7 @@ export function useDrawArc(
     }
 
     return { kind: "none" };
-  }, [arcState, mousePos]);
+  }, [arcState, mousePos, calcArcFromAccum]);
 
   return {
     arcState,

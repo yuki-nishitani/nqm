@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { WorldLayer } from "./WorldLayer";
 import { useAppContext } from "../contexts/AppContext";
 import { snap, projectPointOnSegment, nearestGridIntersectionOnSegment } from "../utils/geometry";
+import { bulgeToArc } from "../utils/curveUtils";
 import { SupportType, SIDEBAR_W, ZOOM_SCALE_FACTOR, DBL_MS, DBL_DIST } from "../types";
 import { useRef } from "react";
 import { DiagramLayer } from "./DiagramLayer";
@@ -88,10 +89,43 @@ export function WorldStage() {
     for (const m of members) {
       const a = nodeById.get(m.a), b = nodeById.get(m.b);
       if (!a || !b) continue;
-      const pt = nearestGridIntersectionOnSegment(wp.x, wp.y, a.x, a.y, b.x, b.y);
-      if (!pt) continue;
-      const d = Math.hypot(wp.x - pt.x, wp.y - pt.y);
-      if (d < bestDist) { bestDist = d; bestMemberId = m.id; bestPt = pt; }
+
+      if (m.curve?.type === "arc") {
+        // 円弧メンバー: 円上の最近傍点を決める
+        const { cx, cy, r, startAngle, endAngle, anticlockwise } = bulgeToArc(
+          a.x, a.y, b.x, b.y, m.curve.bulge
+        );
+        const angleToPointer = Math.atan2(wp.y - cy, wp.x - cx);
+        // 角度を円弧範囲内にクランプ
+        let dAngle = endAngle - startAngle;
+        if (!anticlockwise && dAngle <= 0) dAngle += 2 * Math.PI;
+        if ( anticlockwise && dAngle >= 0) dAngle -= 2 * Math.PI;
+        // ポインタの角度が円弧範囲内か判定
+        let tAngle = (angleToPointer - startAngle) / dAngle;
+        if (!anticlockwise) {
+          let norm = ((angleToPointer - startAngle) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+          tAngle = norm / Math.abs(dAngle);
+        } else {
+          let norm = ((startAngle - angleToPointer) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+          tAngle = norm / Math.abs(dAngle);
+        }
+        tAngle = Math.max(0, Math.min(1, tAngle));
+        const nearAngle = startAngle + dAngle * tAngle;
+        const nearX = cx + r * Math.cos(nearAngle);
+        const nearY = cy + r * Math.sin(nearAngle);
+        const d = Math.hypot(wp.x - nearX, wp.y - nearY);
+        if (d < bestDist) {
+          bestDist = d;
+          bestMemberId = m.id;
+          bestPt = { x: nearX, y: nearY };
+        }
+      } else {
+        // 直線メンバー: グリッド交点スナップ
+        const pt = nearestGridIntersectionOnSegment(wp.x, wp.y, a.x, a.y, b.x, b.y);
+        if (!pt) continue;
+        const d = Math.hypot(wp.x - pt.x, wp.y - pt.y);
+        if (d < bestDist) { bestDist = d; bestMemberId = m.id; bestPt = pt; }
+      }
     }
     return bestMemberId && bestPt ? { memberId: bestMemberId, pt: bestPt, wp } : null;
   }
